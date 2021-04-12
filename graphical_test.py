@@ -6,7 +6,7 @@ pygame.init()
 
 GAME_FONT = pygame.freetype.SysFont("Arial", 24)
 
-DISPLAY_WIDTH = 1280
+DISPLAY_WIDTH = 1290
 DISPLAY_HEIGHT = 720
 HOUSE_X = DISPLAY_WIDTH // 2
 HOUSE_Y = DISPLAY_HEIGHT // 2
