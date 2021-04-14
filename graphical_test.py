@@ -2,11 +2,13 @@ import pygame
 import pygame.freetype
 import random
 import numpy as np
+import sys
+from pympler import asizeof
 
 
 class Ant:
     def __init__(self, start_x, start_y):
-        self.size = 15
+        self.size = 50
         self.x = start_x
         self.y = start_y
         self.image = pygame.image.load('./images/ant.png')
@@ -15,7 +17,9 @@ class Ant:
         self.angle = 0.25 * np.pi
 
     def display_ant(self, display: pygame.Surface):
-        display.blit(self.image, (self.x - self.size // 2, self.y + self.size // 2))
+        new_image = pygame.transform.rotate(self.image, self.direction * 180 / np.pi)
+        new_rectangle = new_image.get_rect(center=(self.x, self.y))
+        display.blit(new_image, new_rectangle.topleft)
 
     def update_x(self, new_x):
         self.x = new_x
@@ -25,8 +29,9 @@ class Ant:
 
     def move_random(self, dist, display: pygame.Surface):
         self.new_random_direction()
-        self.update_x((random.randint(-dist, dist) + self.x) % DISPLAY_WIDTH)
-        self.update_y((random.randint(-dist, dist) + self.y) % DISPLAY_HEIGHT)
+        distance = (random.randint(0, dist))
+        self.update_x(round(distance * np.cos(self.direction)) + self.x % DISPLAY_WIDTH)
+        self.update_y(round(distance * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT)
         self.display_ant(display)
 
     def new_random_direction(self):
@@ -44,7 +49,7 @@ class Colony:
 
     def move_ants(self, display: pygame.Surface):
         for ant in self.ants:
-            ant.move_random(10, display)
+            ant.move_random(60, display)
 
 
 pygame.init()
@@ -69,7 +74,7 @@ crashed = False
 is_pause = True
 
 gameDisplay.fill(black)
-simulation = Colony(HOUSE_X, HOUSE_Y, 200)
+simulation = Colony(HOUSE_X, HOUSE_Y, 1)
 
 while not crashed:
     gameDisplay.fill(black)
@@ -82,8 +87,10 @@ while not crashed:
     if is_pause:
         GAME_FONT.render_to(gameDisplay, (20, 40), "To unpause game press spacebar", white)
     else:
-        Colony.move_ants(gameDisplay)
+        simulation.move_ants(gameDisplay)
+        # print(simulation.ants[0].direction * 180 / np.pi, simulation.ants[0].x, simulation.ants[0].y)
     pygame.display.update()
-    clock.tick(20)
+    # print(asizeof.asizeof(gameDisplay))
+    clock.tick(2)
 pygame.quit()
 quit()
