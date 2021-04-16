@@ -107,7 +107,7 @@ GAME_FONT = pygame.freetype.SysFont("Arial", 24)
 DISPLAY_WIDTH, DISPLAY_HEIGHT = 1280, 720
 HOUSE_X, HOUSE_Y = DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2
 house_pheromon_color, food_pheromon_color = [214, 51, 255], [0, 230, 0]
-n_ant = 5
+n_ant = 200
 
 ant_size = 15
 
@@ -138,10 +138,11 @@ while not crashed:
         GAME_FONT.render_to(gameDisplay, (20, 40), "To unpause game press spacebar", white)
         simulation.display_ants(gameDisplay)
     else:
+        GAME_FONT.render_to(gameDisplay, (20, 40), str(int(clock.get_fps())), white)
         simulation.one_turn(gameDisplay)
         # print(simulation.ants[0].direction * 180 / np.pi, simulation.ants[0].x, simulation.ants[0].y)
     pygame.display.update()
     # print(asizeof.asizeof(gameDisplay))
-    clock.tick(10)
+    clock.tick(20)
 pygame.quit()
 quit()
