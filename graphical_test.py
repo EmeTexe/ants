@@ -45,14 +45,13 @@ class Ant:
 
 
 class Pheromon:
-    def __init__(self, life_expect, x, y, color: (int, int, int), image_path):
+    def __init__(self, life_expect, x, y, color: (int, int, int), image):
         self.life_expectancy = life_expect
         self.life = 0
         self.x, self.y = x, y
         self.color = color
         self.radius = 3
-        self.image = pygame.image.load(image_path)
-        self.image = pygame.transform.scale(self.image, (self.radius * 2, self.radius * 2))
+        self.image = image
 
     def circle_draw(self, display: pygame.Surface):
         transp = round(255 / self.life_expectancy * (self.life_expectancy - self.life))
@@ -71,6 +70,10 @@ class Colony:
         self.x, self.y = x, y
         self.ants = [Ant(x, y) for _ in range(n)]
         self.pheromons = []
+        self.pheromons_radius = 3
+        self.pheromons_image = pygame.image.load('./images/to_house.png')
+        self.pheromons_image = pygame.transform.scale(self.pheromons_image,
+                                                      (self.pheromons_radius * 2, self.pheromons_radius * 2))
         self.step = 10
 
     def display_ants(self, display):
@@ -85,7 +88,7 @@ class Colony:
         if self.step == 10:
             self.step = 0
             for a in self.ants:
-                self.pheromons.append(Pheromon(150, a.x, a.y, house_pheromon_color, './images/to_house.png'))
+                self.pheromons.append(Pheromon(150, a.x, a.y, house_pheromon_color, self.pheromons_image))
         temp_pheromons = []
         for i, p in enumerate(self.pheromons):
             if p.survive():
@@ -107,7 +110,7 @@ GAME_FONT = pygame.freetype.SysFont("Arial", 24)
 DISPLAY_WIDTH, DISPLAY_HEIGHT = 1280, 720
 HOUSE_X, HOUSE_Y = DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2
 house_pheromon_color, food_pheromon_color = [214, 51, 255], [0, 230, 0]
-n_ant = 200
+n_ant = 2000
 
 ant_size = 15
 
