@@ -22,6 +22,8 @@ class Ant:
         self.emission = "home"
         self.emission_step = 10
         self.current_step = 0
+        self.sense = 100
+        self.max_move = 5
 
     def display_ant(self, display: pygame.Surface):
         new_image = pygame.transform.rotate(self.image, self.direction * 180 / np.pi)
@@ -34,9 +36,22 @@ class Ant:
     def update_y(self, new_y):
         self.y = new_y
 
-    def move_random(self, dist, display: pygame.Surface):
+    def move(self, x, y, display):
+        self.find_and_set_angle(x, y)
+        d1, d2 = pygame.math.Vector2(), pygame.math.Vector2()
+        d1.xy = x, y
+        d2.xy = self.x, self.y
+        dist = d1.distance_to(d2)
+        if dist > self.max_move:
+            self.update_x(round(self.max_move * np.cos(self.direction)) + self.x % DISPLAY_WIDTH)
+            self.update_y(round(self.max_move * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT)
+        else:
+            self.x, self.y = x, y
+        self.display_ant(display)
+
+    def move_random(self, display: pygame.Surface):
         self.new_random_direction()
-        distance = (random.randint(0, dist))
+        distance = (random.randint(0, self.max_move))
         self.update_x(round(distance * np.cos(self.direction)) + self.x % DISPLAY_WIDTH)
         self.update_y(round(distance * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT)
         self.display_ant(display)
@@ -44,6 +59,16 @@ class Ant:
     def new_random_direction(self):
         # self.direction = (random.uniform(-self.angle, self.angle) + self.direction) % (2 * np.pi)
         self.direction = random.vonmisesvariate(self.direction, 40)
+
+    def is_sensible(self, x, y):
+        d1, d2 = pygame.math.Vector2(), pygame.math.Vector2()
+        d1.xy = x, y
+        d2.xy = self.x, self.y
+        return d1.distance_to(d2) <= self.sense
+
+    def find_and_set_angle(self, x, y):
+        diffx, diffy = x - self.x, self.y - y
+        self.direction = np.arctan2(diffy, diffx)
 
 
 class Pheromon:
@@ -108,7 +133,12 @@ class Colony:
 
     def move_ants(self, display: pygame.Surface):
         for ant in self.ants:
-            ant.move_random(5, display)
+            for f in self.foods:
+                if ant.is_sensible(f.x, f.y):
+                    ant.move(f.x, f.y, display)
+                    break
+            else:
+                ant.move_random(display)
 
     def update_pheromons(self, display):
         if self.step == 10:
