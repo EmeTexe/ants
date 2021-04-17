@@ -3,6 +3,7 @@ import pygame.freetype
 import random
 import numpy as np
 import math
+import time
 
 
 # import sys
@@ -11,7 +12,7 @@ import math
 
 class Ant:
     def __init__(self, start_x, start_y):
-        self.size = 20
+        self.size = 12
         self.x = start_x
         self.y = start_y
         self.image = pygame.image.load('./images/ant.png')
@@ -41,20 +42,24 @@ class Ant:
         self.display_ant(display)
 
     def new_random_direction(self):
-        self.direction = (random.uniform(-self.angle, self.angle) + self.direction) % (2 * np.pi)
+        # self.direction = (random.uniform(-self.angle, self.angle) + self.direction) % (2 * np.pi)
+        self.direction = random.vonmisesvariate(self.direction, 40)
 
 
 class Pheromon:
     def __init__(self, life_expect, x, y, color: (int, int, int), image):
         self.life_expectancy = life_expect
         self.life = 0
+        self.display_time = 60 / 100 * life_expect
         self.x, self.y = x, y
         self.color = color
-        self.radius = 3
+        self.radius = 2
         self.image = image
 
     def circle_draw(self, display: pygame.Surface):
-        transp = round(255 / self.life_expectancy * (self.life_expectancy - self.life))
+        if self.life >= self.display_time:
+            return
+        transp = round(255 / self.display_time * (self.display_time - self.life))
         self.image.set_alpha(transp)
         display.blit(self.image, (self.x - self.radius, self.y - self.radius))
 
@@ -65,16 +70,37 @@ class Pheromon:
         return self.life < self.life_expectancy
 
 
+class Food:
+    def __init__(self, x, y, n, image, radius):
+        self.x, self.y = x, y
+        self.max_nutrition = n
+        self.remaining_nutrition = n
+        self.image = image
+        self.radius = radius
+
+    def display_food(self, display: pygame.Surface):
+        transp = round(235 / self.max_nutrition * self.remaining_nutrition + 20)
+        self.image.set_alpha(transp)
+        display.blit(self.image, (self.x - self.radius, self.y - self.radius))
+
+
 class Colony:
     def __init__(self, x, y, n):
         self.x, self.y = x, y
         self.ants = [Ant(x, y) for _ in range(n)]
+        self.ants_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.pheromons = []
-        self.pheromons_radius = 3
-        self.pheromons_image = pygame.image.load('./images/to_house.png')
+        self.pheromons_radius = 2
+        self.pheromons_image = pygame.image.load('./images/to_house.png').convert_alpha()
         self.pheromons_image = pygame.transform.scale(self.pheromons_image,
                                                       (self.pheromons_radius * 2, self.pheromons_radius * 2))
+        self.pheromons_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.step = 10
+        self.foods = []
+        self.foods_radius = 10
+        self.foods_image = pygame.image.load('./images/to_house.png')
+        self.foods_image = pygame.transform.scale(self.foods_image,
+                                                  (self.foods_radius * 2, self.foods_radius * 2))
 
     def display_ants(self, display):
         for ant in self.ants:
@@ -82,13 +108,13 @@ class Colony:
 
     def move_ants(self, display: pygame.Surface):
         for ant in self.ants:
-            ant.move_random(10, display)
+            ant.move_random(5, display)
 
     def update_pheromons(self, display):
         if self.step == 10:
             self.step = 0
             for a in self.ants:
-                self.pheromons.append(Pheromon(150, a.x, a.y, house_pheromon_color, self.pheromons_image))
+                self.pheromons.append(Pheromon(200, a.x, a.y, house_pheromon_color, self.pheromons_image))
         temp_pheromons = []
         for i, p in enumerate(self.pheromons):
             if p.survive():
@@ -99,18 +125,29 @@ class Colony:
         self.step += 1
 
     def one_turn(self, display):
-        self.move_ants(display)
+        t1 = time.time()
         self.update_pheromons(display)
+        for f in self.foods:
+            f.display_food(display)
+        t2 = time.time()
+        self.move_ants(display)
+        t3 = time.time()
+        print(f"move ants : {t3 - t2}, pheromons : {t2 - t1}")
+
+    def add_food(self, x, y, display):
+        food = Food(x, y, 150, self.foods_image, self.foods_radius)
+        self.foods.append(food)
+        food.display_food(display)
 
 
 pygame.init()
 
 GAME_FONT = pygame.freetype.SysFont("Arial", 24)
 
-DISPLAY_WIDTH, DISPLAY_HEIGHT = 1280, 720
+DISPLAY_WIDTH, DISPLAY_HEIGHT = 1500, 900
 HOUSE_X, HOUSE_Y = DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2
 house_pheromon_color, food_pheromon_color = [214, 51, 255], [0, 230, 0]
-n_ant = 2000
+n_ant = 300
 
 ant_size = 15
 
@@ -130,6 +167,7 @@ gameDisplay.fill(black)
 simulation = Colony(HOUSE_X, HOUSE_Y, n_ant)
 
 while not crashed:
+    t2 = time.time()
     gameDisplay.fill(black)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -137,15 +175,18 @@ while not crashed:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 is_pause = not is_pause
+        if event.type == pygame.MOUSEBUTTONUP:
+            pos = pygame.mouse.get_pos()
+            simulation.add_food(pos[0], pos[1], gameDisplay)
     if is_pause:
         GAME_FONT.render_to(gameDisplay, (20, 40), "To unpause game press spacebar", white)
-        simulation.display_ants(gameDisplay)
+        # simulation.display_ants(gameDisplay)
     else:
-        GAME_FONT.render_to(gameDisplay, (20, 40), str(int(clock.get_fps())), white)
+        # GAME_FONT.render_to(gameDisplay, (20, 40), str(int(clock.get_fps())), white)
         simulation.one_turn(gameDisplay)
-        # print(simulation.ants[0].direction * 180 / np.pi, simulation.ants[0].x, simulation.ants[0].y)
+    GAME_FONT.render_to(gameDisplay, (10, 10), f"{str(int(clock.get_fps()))} fps", white)
     pygame.display.update()
-    # print(asizeof.asizeof(gameDisplay))
-    clock.tick(20)
+    # print("turn time :", time.time()-t2)
+    clock.tick(30)
 pygame.quit()
 quit()
