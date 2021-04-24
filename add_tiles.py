@@ -196,7 +196,7 @@ if __name__ == "__main__":
     white = (255, 255, 255)
     house_pheromon_color, food_pheromon_color = [214, 51, 255], [0, 230, 0]
     ANT_COLOR = white
-    n_ant = 200
+    n_ant = 4000
 
     ant_size = 15
 
