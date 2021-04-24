@@ -5,35 +5,21 @@ import numpy as np
 import time
 
 
-# import sys
-# from pympler import asizeof
-
-
 class Ant:
     def __init__(self, start_x, start_y):
-        self.size = 12
         self.x = start_x
         self.y = start_y
-        self.image = pygame.image.load('./images/ant.png')
-        self.image = pygame.transform.scale(self.image, (self.size, self.size))
+        self.size = 3
         self.direction = random.uniform(0, 2 * np.pi)
-        self.angle = 0.15 * np.pi
         self.emission = "home"
-        self.emission_step = 10
-        self.current_step = 0
-        self.sense = 100
-        self.max_move = 5
+        self.sense = 40
+        self.max_move = 3
+        self.surf = pygame.Surface((self.size, self.size))
+        self.surf.fill(ANT_COLOR)
+        self.has_food = False
 
     def display_ant(self, display: pygame.Surface):
-        new_image = pygame.transform.rotate(self.image, self.direction * 180 / np.pi)
-        new_rectangle = new_image.get_rect(center=(self.x, self.y))
-        display.blit(new_image, new_rectangle.topleft)
-
-    def update_x(self, new_x):
-        self.x = new_x
-
-    def update_y(self, new_y):
-        self.y = new_y
+        display.blit(self.surf, (self.x - 1, self.y - 1))
 
     def move(self, x, y, display):
         self.find_and_set_angle(x, y)
@@ -42,22 +28,32 @@ class Ant:
         d2.xy = self.x, self.y
         dist = d1.distance_to(d2)
         if dist > self.max_move:
-            self.update_x(round(self.max_move * np.cos(self.direction)) + self.x % DISPLAY_WIDTH)
-            self.update_y(round(self.max_move * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT)
+            self.x = round(self.max_move * np.cos(self.direction)) + self.x % DISPLAY_WIDTH
+            self.y = round(self.max_move * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT
         else:
             self.x, self.y = x, y
+            self.has_food = not self.has_food
         self.display_ant(display)
 
     def move_random(self, display: pygame.Surface):
         self.new_random_direction()
         distance = (random.randint(0, self.max_move))
-        self.update_x(round(distance * np.cos(self.direction)) + self.x % DISPLAY_WIDTH)
-        self.update_y(round(distance * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT)
+        # self.x = round(distance * np.cos(self.direction)) + self.x % DISPLAY_WIDTH
+        # self.y = round(distance * -np.sin(self.direction)) + self.y % DISPLAY_HEIGHT
+        newx = round(distance * np.cos(self.direction)) + self.x
+        newy = round(distance * -np.sin(self.direction)) + self.y
+        if newx < 0 or newx > DISPLAY_WIDTH or newy < 0 or newy > DISPLAY_HEIGHT:
+            self.direction += np.pi
+        if newx < 0: newx = 0
+        if newy < 0: newy = 0
+        if newx > DISPLAY_WIDTH: newx = DISPLAY_WIDTH
+        if newy > DISPLAY_HEIGHT: newy = DISPLAY_HEIGHT
+        self.x, self.y = newx, newy
         self.display_ant(display)
 
     def new_random_direction(self):
         # self.direction = (random.uniform(-self.angle, self.angle) + self.direction) % (2 * np.pi)
-        self.direction = random.vonmisesvariate(self.direction, 40)
+        self.direction = random.vonmisesvariate(self.direction, 80)
 
     def is_sensible(self, x, y):
         d1, d2 = pygame.math.Vector2(), pygame.math.Vector2()
@@ -71,21 +67,24 @@ class Ant:
 
 
 class Pheromon:
-    def __init__(self, life_expect, x, y, color: (int, int, int), image):
+    def __init__(self, life_expect, x, y, color: (int, int, int)):
         self.life_expectancy = life_expect
         self.life = 0
-        self.display_time = 60 / 100 * life_expect
+        self.display_time = 80 / 100 * life_expect
         self.x, self.y = x, y
         self.color = color
-        self.radius = 2
-        self.image = image
+        self.size = 2
+        self.surf = pygame.Surface((self.size, self.size))
+        self.surf.fill(self.color)
 
     def circle_draw(self, display: pygame.Surface):
         if self.life >= self.display_time:
             return
-        transp = round(255 / self.display_time * (self.display_time - self.life))
-        self.image.set_alpha(transp)
-        display.blit(self.image, (self.x - self.radius, self.y - self.radius))
+        # transp = round(255 / self.display_time * (self.display_time - self.life))
+        # surf = pygame.Surface((self.size, self.size))
+        self.surf.set_alpha(self.display_time - self.life)
+        # self.surf.fill(self.color)
+        display.blit(self.surf, (self.x, self.y))
 
     def add_life(self):
         self.life += 1
@@ -115,11 +114,8 @@ class Colony:
         self.ants_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         self.pheromons = []
         self.pheromons_radius = 2
-        self.pheromons_image = pygame.image.load('./images/to_house.png').convert_alpha()
-        self.pheromons_image = pygame.transform.scale(self.pheromons_image,
-                                                      (self.pheromons_radius * 2, self.pheromons_radius * 2))
         self.pheromons_surface = pygame.Surface((DISPLAY_WIDTH, DISPLAY_HEIGHT))
-        self.step = 10
+        self.step = 7
         self.foods = []
         self.foods_radius = 10
         self.foods_image = pygame.image.load('./images/apple.png')
@@ -140,10 +136,10 @@ class Colony:
                 ant.move_random(display)
 
     def update_pheromons(self, display):
-        if self.step == 10:
+        if self.step == 7:
             self.step = 0
             for a in self.ants:
-                self.pheromons.append(Pheromon(200, a.x, a.y, house_pheromon_color, self.pheromons_image))
+                self.pheromons.append(Pheromon(250, a.x, a.y, house_pheromon_color))
         temp_pheromons = []
         for i, p in enumerate(self.pheromons):
             if p.survive():
@@ -178,21 +174,20 @@ class Colony:
 
 pygame.init()
 
-GAME_FONT = pygame.freetype.SysFont("Arial", 24)
+GAME_FONT = pygame.freetype.SysFont("Arial", 16)
 
-DISPLAY_WIDTH, DISPLAY_HEIGHT = 1500, 900
+DISPLAY_WIDTH, DISPLAY_HEIGHT = 1040, 800
 HOUSE_X, HOUSE_Y = DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2
+black = (0, 0, 0)
+white = (255, 255, 255)
 house_pheromon_color, food_pheromon_color = [214, 51, 255], [0, 230, 0]
+ANT_COLOR = white
 n_ant = 500
 
 ant_size = 15
 
-
 gameDisplay = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
 pygame.display.set_caption('Vive les fourmis')
-
-black = (0, 0, 0)
-white = (255, 255, 255)
 
 clock = pygame.time.Clock()
 
@@ -226,6 +221,6 @@ while not crashed:
     GAME_FONT.render_to(gameDisplay, (10, 10), f"{str(int(clock.get_fps()))} fps", white)
     pygame.display.update()
     # print("turn time :", time.time()-t2)
-    clock.tick(30)
+    clock.tick(60)
 pygame.quit()
 quit()
